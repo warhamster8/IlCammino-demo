@@ -1,0 +1,27 @@
+Demo Il Cammino — gestione ambulatorio
+======================================
+
+Apri il link nel browser (Chrome, Edge, Safari, Firefox).
+Non serve installare nulla.
+
+Accesso iniziale
+  Utente:   demo
+  Password: cammino2026
+(modificabili dal menu Manutenzione dopo l’accesso)
+
+Cosa puoi fare da solo (senza codice)
+- Pazienti, visite, consensi, report
+- Menu Guida: istruzioni d’uso
+- Menu Manutenzione:
+  · nome studio e operatore
+  · cambio utente/password
+  · backup JSON e ripristino
+  · ripristino dati di esempio
+
+Nota
+I dati restano nel browser usato. Fai backup periodici.
+Questa è una demo: la versione definitiva avrà login dedicato
+e database sul PC dello studio.
+
+Associazione Il Cammino ODV
+https://www.associazioneilcammino.it/

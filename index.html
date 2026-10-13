@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
+    <meta name="color-scheme" content="light only" />
+    <meta name="theme-color" content="#1a3318" />
+    <title>il Cammino — Demo ambulatorio</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Libre+Baskerville:ital,wght@1,700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+    <style>
+      /* Solo base: i breakpoint stanno in styles.css */
+      html, body { margin: 0; background: #f4f6f5; color: #1c2430; font-family: "DM Sans", sans-serif; }
+      .app-shell { display: flex; min-height: 100vh; width: 100%; }
+      .main { flex: 1; min-width: 0; color: #1c2430; }
+      .loader { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; background: rgba(244, 246, 245, 0.96); }
+      .loader.hidden { display: none !important; }
+      .login-screen.hidden, .app-shell.hidden { display: none !important; }
+    </style>
+  </head>
+  <body>
+    <div id="loader" class="loader hidden">
+      <div class="loader-card">
+        <div class="spinner" aria-hidden="true"></div>
+        <h1>il Cammino</h1>
+        <p>Caricamento database SQLite in memoria…</p>
+      </div>
+    </div>
+
+    <div id="loginScreen" class="login-screen">
+      <div class="login-card">
+        <p class="login-eyebrow">Associazione ODV</p>
+        <h1>il Cammino</h1>
+        <p class="login-lead">Accesso demo ambulatorio</p>
+        <form id="formLogin" autocomplete="on">
+          <div class="field">
+            <label for="loginUser">Utente</label>
+            <input id="loginUser" name="username" type="text" required autocomplete="username" />
+          </div>
+          <div class="field">
+            <label for="loginPass">Password</label>
+            <input id="loginPass" name="password" type="password" required autocomplete="current-password" />
+          </div>
+          <p id="loginError" class="login-error hidden" role="alert">Utente o password non corretti.</p>
+          <button type="submit" class="btn btn-primary login-submit">Entra</button>
+        </form>
+        <p class="login-hint" id="loginHint">
+          Utenza di test condivisa<br />
+          <strong id="loginHintUser">demo</strong> / <strong id="loginHintPass">cammino2026</strong>
+        </p>
+      </div>
+    </div>
+
+    <div id="app" class="app-shell hidden">
+      <div id="sidebarOverlay" class="sidebar-overlay" aria-hidden="true"></div>
+
+      <aside id="sidebar" class="sidebar">
+        <div class="brand">
+          <p class="brand-eyebrow" id="brandEyebrow">Associazione ODV</p>
+          <h1 id="brandName">il Cammino</h1>
+          <p id="brandSubtitle">Gestione ambulatorio<br />Demo · servizio gratuito</p>
+        </div>
+
+        <nav class="nav" aria-label="Navigazione principale">
+          <button type="button" class="nav-btn active" data-panel="dashboard">
+            <span class="nav-icon">▣</span> Dashboard
+          </button>
+          <button type="button" class="nav-btn" data-panel="pazienti">
+            <span class="nav-icon">◎</span> Pazienti
+          </button>
+          <button type="button" class="nav-btn" data-panel="visite">
+            <span class="nav-icon">◷</span> Visite
+          </button>
+          <button type="button" class="nav-btn" data-panel="consensi">
+            <span class="nav-icon">☰</span> Consensi
+          </button>
+          <button type="button" class="nav-btn" data-panel="report">
+            <span class="nav-icon">▤</span> Report
+          </button>
+          <button type="button" class="nav-btn" data-panel="audit">
+            <span class="nav-icon">◉</span> Audit log
+          </button>
+          <button type="button" class="nav-btn" data-panel="guida">
+            <span class="nav-icon">?</span> Guida
+          </button>
+          <button type="button" class="nav-btn" data-panel="manutenzione">
+            <span class="nav-icon">⚙</span> Manutenzione
+          </button>
+        </nav>
+
+        <div class="sidebar-foot">
+          <strong id="operatorLabel">Luca Verdi</strong>
+          <button type="button" class="btn btn-ghost btn-sm btn-logout" id="btnLogout">Esci</button>
+        </div>
+      </aside>
+
+      <main class="main">
+        <div class="topbar">
+          <div>
+            <button type="button" id="menuBtn" class="mobile-toggle" aria-label="Apri menu" aria-expanded="false">
+              ☰ Menu
+            </button>
+            <h2 id="pageTitle">Dashboard</h2>
+            <p id="pageSubtitle">Panoramica dell’ambulatorio</p>
+          </div>
+          <div class="top-actions">
+            <button type="button" class="btn btn-ghost" id="btnResetDb">Reset dati demo</button>
+          </div>
+        </div>
+
+        <!-- DASHBOARD -->
+        <section id="panel-dashboard" class="panel active">
+          <div class="kpi-grid">
+            <article class="kpi">
+              <p class="kpi-label">Pazienti attivi</p>
+              <p class="kpi-value" id="kpiPazienti">—</p>
+            </article>
+            <article class="kpi">
+              <p class="kpi-label">Visite del mese</p>
+              <p class="kpi-value" id="kpiVisite">—</p>
+            </article>
+            <article class="kpi">
+              <p class="kpi-label">Consensi da gestire</p>
+              <p class="kpi-value" id="kpiConsensi">—</p>
+            </article>
+            <article class="kpi">
+              <p class="kpi-label">Programmate oggi</p>
+              <p class="kpi-value" id="kpiOggi">—</p>
+            </article>
+          </div>
+
+          <div class="grid-2">
+            <div class="card">
+              <div class="card-head">
+                <h3>Avvisi privacy</h3>
+                <span class="badge badge-warn">scadenze</span>
+              </div>
+              <div class="card-body" id="listaAvvisi"></div>
+            </div>
+            <div class="card">
+              <div class="card-head">
+                <h3>Prossime visite</h3>
+                <span class="badge badge-info">agenda</span>
+              </div>
+              <div class="card-body" id="listaProssime"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- PAZIENTI -->
+        <section id="panel-pazienti" class="panel">
+          <div class="toolbar">
+            <input
+              type="search"
+              id="searchPazienti"
+              class="search"
+              placeholder="Cerca CF, nome o cognome…"
+              autocomplete="off"
+            />
+            <button type="button" class="btn btn-primary" id="btnNuovoPaziente">
+              Nuovo paziente
+            </button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Paziente</th>
+                  <th>Codice fiscale</th>
+                  <th>Contatti</th>
+                  <th>Città</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="tbodyPazienti"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- VISITE -->
+        <section id="panel-visite" class="panel">
+          <div class="toolbar">
+            <select id="filtroVisite" class="select" style="max-width: 220px">
+              <option value="">Tutti gli stati</option>
+              <option value="PROGRAMMATA">Programmate</option>
+              <option value="COMPLETATA">Completate</option>
+              <option value="ANNULLATA">Annullate</option>
+            </select>
+            <button type="button" class="btn btn-primary" id="btnNuovaVisita">
+              Nuova visita
+            </button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Data / ora</th>
+                  <th>Paziente</th>
+                  <th>Tipo</th>
+                  <th>Stato</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="tbodyVisite"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- CONSENSI -->
+        <section id="panel-consensi" class="panel">
+          <div class="toolbar">
+            <select id="filtroConsensi" class="select" style="max-width: 220px">
+              <option value="">Tutti gli stati</option>
+              <option value="ATTIVO">Attivi</option>
+              <option value="IN_SCADENZA">In scadenza</option>
+              <option value="SCADUTO">Scaduti</option>
+              <option value="REVOCATO">Revocati</option>
+            </select>
+            <button type="button" class="btn btn-primary" id="btnNuovoConsenso">
+              Carica consenso
+            </button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Paziente</th>
+                  <th>Tipo</th>
+                  <th>Firma</th>
+                  <th>Scadenza</th>
+                  <th>Allegato</th>
+                  <th>Stato</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="tbodyConsensi"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- REPORT -->
+        <section id="panel-report" class="panel">
+          <div class="report-presets" id="reportPresets" role="tablist" aria-label="Tipologie di report">
+            <button type="button" class="preset-card active" data-report="visite_mese" role="tab" aria-selected="true">
+              <strong>Mensile (routine)</strong>
+              <span>Visite del mese: totale, completate, programmate, annullate. Uso tipico a fine mese per il consiglio / responsabile.</span>
+            </button>
+            <button type="button" class="preset-card" data-report="visite_anno" role="tab" aria-selected="false">
+              <strong>Annuale</strong>
+              <span>Riepilogo mese per mese sull’anno scelto. Confronto carico lavoro e andamento.</span>
+            </button>
+            <button type="button" class="preset-card" data-report="privacy" role="tab" aria-selected="false">
+              <strong>Consensi privacy</strong>
+              <span>Quanti consensi attivi, in scadenza, scaduti, revocati e quanti hanno allegato firmato.</span>
+            </button>
+            <button type="button" class="preset-card" data-report="progetto" role="tab" aria-selected="false">
+              <strong>Per progetto / tipologia</strong>
+              <span>Raggruppa le visite per tipo (es. Cardiologia, Controllo glicemia). Utile per campagne o progetti mirati.</span>
+            </button>
+          </div>
+          <p class="report-hint" id="reportHint">Esempio regolare: a fine mese seleziona l’anno e il mese correnti, lascia «Tutti i pazienti», genera ed esporta CSV.</p>
+          <div class="toolbar" id="reportToolbar">
+            <select id="reportAnno" class="select" style="max-width: 120px"></select>
+            <select id="reportMese" class="select" style="max-width: 160px">
+              <option value="">Tutto l’anno</option>
+              <option value="01">Gennaio</option>
+              <option value="02">Febbraio</option>
+              <option value="03">Marzo</option>
+              <option value="04">Aprile</option>
+              <option value="05">Maggio</option>
+              <option value="06">Giugno</option>
+              <option value="07">Luglio</option>
+              <option value="08">Agosto</option>
+              <option value="09">Settembre</option>
+              <option value="10">Ottobre</option>
+              <option value="11">Novembre</option>
+              <option value="12">Dicembre</option>
+            </select>
+            <select id="reportPaziente" class="select" style="max-width: 260px">
+              <option value="">Tutti i pazienti</option>
+            </select>
+            <button type="button" class="btn btn-primary" id="btnGeneraReport">
+              Genera
+            </button>
+            <button type="button" class="btn btn-ghost" id="btnExportCsv">
+              Esporta CSV
+            </button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr id="theadReport">
+                  <th>Periodo</th>
+                  <th>Totale</th>
+                  <th>Completate</th>
+                  <th>Programmate</th>
+                  <th>Annullate</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyReport"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- AUDIT -->
+        <section id="panel-audit" class="panel">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Quando</th>
+                  <th>Utente</th>
+                  <th>Azione</th>
+                  <th>Entità</th>
+                  <th>Dettaglio</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyAudit"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- GUIDA -->
+        <section id="panel-guida" class="panel">
+          <div class="guide-stack">
+            <article class="card guide-card guide-faq">
+              <div class="card-head"><h3>1. Come carico i dati privacy di un nuovo utente?</h3></div>
+              <div class="card-body guide-body">
+                <ol>
+                  <li>Vai in <strong>Pazienti → Nuovo paziente</strong> e salva anagrafica (CF a 16 caratteri).</li>
+                  <li>Apri <strong>Consensi → Carica consenso</strong>.</li>
+                  <li>Scegli il paziente, il tipo (es. Trattamento Dati Sanitari), data firma e scadenza.</li>
+                  <li>Allega il PDF/immagine del modulo firmato e salva.</li>
+                </ol>
+                <p class="guide-note">In alternativa, dalla scheda «Nuovo paziente» puoi spuntare «Registra subito il consenso privacy» e caricare l’allegato nello stesso passaggio.</p>
+              </div>
+            </article>
+
+            <article class="card guide-card guide-faq">
+              <div class="card-head"><h3>2. Come rinnovo o modifico dati utente e/o privacy?</h3></div>
+              <div class="card-body guide-body">
+                <p><strong>Anagrafica paziente:</strong> Pazienti → Modifica → salva. Contatti, indirizzo, note e allergie si aggiornano subito; resta traccia in Audit log.</p>
+                <p><strong>Privacy:</strong> in Consensi hai tre azioni distinte.</p>
+                <ul>
+                  <li><strong>Modifica</strong> — cambia tipo, date o sostituisci l’allegato senza chiudere il consenso.</li>
+                  <li><strong>Rinnova</strong> — su consensi in scadenza o scaduti: nuova firma = oggi, scadenza +24 mesi; puoi allegare il nuovo modulo firmato.</li>
+                  <li><strong>Revoca</strong> — marca il consenso come REVOCATO (non si usa più per il trattamento).</li>
+                </ul>
+              </div>
+            </article>
+
+            <article class="card guide-card guide-faq">
+              <div class="card-head"><h3>3. Che report si possono generare?</h3></div>
+              <div class="card-body guide-body">
+                <p>Nella sezione <strong>Report</strong> ci sono quattro modelli pronti (clicca la scheda e genera / esporta CSV).</p>
+                <ul>
+                  <li><strong>Mensile (routine)</strong> — esempio: ogni fine mese, ottobre 2026, tutti i pazienti → conteggio visite del mese per il verbale interno.</li>
+                  <li><strong>Annuale</strong> — esempio: anno 2026 senza mese → una riga per ogni mese, utile al bilancio attività.</li>
+                  <li><strong>Consensi privacy</strong> — esempio: controllo GDPR trimestrale → attivi / in scadenza / scaduti / revocati e quanti hanno file allegato.</li>
+                  <li><strong>Per progetto / tipologia</strong> — esempio: campagna «Controllo glicemia» o progetto cardiologico → visite raggruppate per tipo prestazione.</li>
+                </ul>
+                <p class="guide-note">Su un singolo assistito: scegli il paziente nel filtro (report visite mensili/annuali). L’Audit log elenca chi ha generato o modificato cosa.</p>
+              </div>
+            </article>
+
+            <article class="card guide-card">
+              <div class="card-head"><h3>Come iniziare</h3></div>
+              <div class="card-body guide-body">
+                <ol>
+                  <li>Accedi con utente e password (modificabili in <strong>Manutenzione</strong>).</li>
+                  <li>Dalla <strong>Dashboard</strong> vedi pazienti, visite del mese e consensi in scadenza.</li>
+                  <li>Usa il menu a sinistra (su telefono: pulsante <strong>Menu</strong>) per cambiare sezione.</li>
+                  <li>I dati restano salvati in questo browser; fai un <strong>backup</strong> periodico da Manutenzione.</li>
+                </ol>
+              </div>
+            </article>
+
+            <article class="card guide-card">
+              <div class="card-head"><h3>Pazienti e visite</h3></div>
+              <div class="card-body guide-body">
+                <ul>
+                  <li><strong>Cerca</strong> per CF, nome o cognome; <strong>Scheda</strong> mostra visite e consensi.</li>
+                  <li><strong>Visite:</strong> nuova, completa o annulla. Nessun campo costo (servizio gratuito).</li>
+                </ul>
+              </div>
+            </article>
+
+            <article class="card guide-card">
+              <div class="card-head"><h3>Manutenzione</h3></div>
+              <div class="card-body guide-body">
+                <ul>
+                  <li>Nome studio, operatore, utente e password di accesso.</li>
+                  <li>Backup JSON, ripristino, reset dati di esempio.</li>
+                </ul>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <!-- MANUTENZIONE -->
+        <section id="panel-manutenzione" class="panel">
+          <div class="maint-grid">
+            <article class="card">
+              <div class="card-head"><h3>Anagrafica studio</h3></div>
+              <div class="card-body maint-body">
+                <form id="formStudio" class="maint-form">
+                  <div class="field">
+                    <label for="setEyebrow">Etichetta (sopra il nome)</label>
+                    <input id="setEyebrow" name="org_eyebrow" />
+                  </div>
+                  <div class="field">
+                    <label for="setOrgName">Nome visualizzato</label>
+                    <input id="setOrgName" name="org_name" required />
+                  </div>
+                  <div class="field">
+                    <label for="setSubtitle">Sottotitolo</label>
+                    <input id="setSubtitle" name="org_subtitle" />
+                  </div>
+                  <div class="field">
+                    <label for="setOperator">Nome operatore in sidebar</label>
+                    <input id="setOperator" name="operator_name" required />
+                  </div>
+                  <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Salva anagrafica</button>
+                  </div>
+                </form>
+              </div>
+            </article>
+
+            <article class="card">
+              <div class="card-head"><h3>Accesso (login)</h3></div>
+              <div class="card-body maint-body">
+                <form id="formCredenziali" class="maint-form">
+                  <div class="field">
+                    <label for="setLoginUser">Utente</label>
+                    <input id="setLoginUser" name="login_user" required autocomplete="off" />
+                  </div>
+                  <div class="field">
+                    <label for="setLoginPass">Password</label>
+                    <input id="setLoginPass" name="login_pass" required autocomplete="new-password" />
+                  </div>
+                  <p class="guide-note">Tutti i clienti che usano questa demo dovranno conoscere le nuove credenziali.</p>
+                  <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Salva credenziali</button>
+                  </div>
+                </form>
+              </div>
+            </article>
+
+            <article class="card">
+              <div class="card-head"><h3>Backup e ripristino</h3></div>
+              <div class="card-body maint-body">
+                <p class="guide-note">Scarica periodicamente un backup. Il file si può ripristinare su questo stesso browser.</p>
+                <div class="maint-actions">
+                  <button type="button" class="btn btn-primary" id="btnExportBackup">Scarica backup JSON</button>
+                  <label class="btn btn-ghost file-btn">
+                    Carica backup
+                    <input type="file" id="inputImportBackup" accept=".json,application/json" hidden />
+                  </label>
+                </div>
+              </div>
+            </article>
+
+            <article class="card">
+              <div class="card-head"><h3>Dati di esempio</h3></div>
+              <div class="card-body maint-body">
+                <p class="guide-note">Cancella tutte le modifiche e riporta pazienti, visite e consensi iniziali. Le impostazioni (nome studio e login) restano quelle salvate.</p>
+                <div class="maint-actions">
+                  <button type="button" class="btn btn-danger" id="btnResetSeed">Ripristina dati di esempio</button>
+                </div>
+              </div>
+            </article>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <!-- Modal paziente -->
+    <div id="modalPaziente" class="modal-backdrop" role="dialog" aria-modal="true">
+      <div class="modal">
+        <div class="modal-head">
+          <h3 id="modalPazienteTitle">Nuovo paziente</h3>
+          <button type="button" class="btn btn-ghost btn-sm modal-close" data-close="modalPaziente">
+            Chiudi
+          </button>
+        </div>
+        <div class="modal-body">
+          <form id="formPaziente">
+            <input type="hidden" id="pazienteMode" value="create" />
+            <div class="form-grid">
+              <div class="field">
+                <label for="pCf">Codice fiscale *</label>
+                <input id="pCf" name="codice_fiscale" required maxlength="16" />
+              </div>
+              <div class="field">
+                <label for="pSesso">Sesso</label>
+                <select id="pSesso" name="sesso">
+                  <option value="">—</option>
+                  <option value="M">M</option>
+                  <option value="F">F</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="pNome">Nome *</label>
+                <input id="pNome" name="nome" required />
+              </div>
+              <div class="field">
+                <label for="pCognome">Cognome *</label>
+                <input id="pCognome" name="cognome" required />
+              </div>
+              <div class="field">
+                <label for="pNascita">Data di nascita *</label>
+                <input id="pNascita" name="data_nascita" type="date" required />
+              </div>
+              <div class="field">
+                <label for="pLuogo">Luogo di nascita</label>
+                <input id="pLuogo" name="luogo_nascita" />
+              </div>
+              <div class="field full">
+                <label for="pIndirizzo">Indirizzo</label>
+                <input id="pIndirizzo" name="indirizzo" />
+              </div>
+              <div class="field">
+                <label for="pCitta">Città</label>
+                <input id="pCitta" name="citta" />
+              </div>
+              <div class="field">
+                <label for="pCap">CAP</label>
+                <input id="pCap" name="cap" maxlength="5" />
+              </div>
+              <div class="field">
+                <label for="pEmail">Email</label>
+                <input id="pEmail" name="email" type="email" />
+              </div>
+              <div class="field">
+                <label for="pTelefono">Telefono</label>
+                <input id="pTelefono" name="telefono" />
+              </div>
+              <div class="field full">
+                <label for="pNote">Note mediche</label>
+                <textarea id="pNote" name="note_mediche" rows="2"></textarea>
+              </div>
+              <div class="field full">
+                <label for="pAllergie">Allergie</label>
+                <textarea id="pAllergie" name="allergie" rows="2"></textarea>
+              </div>
+            </div>
+
+            <div id="privacyOnCreate" class="privacy-on-create">
+              <label class="check-row">
+                <input type="checkbox" id="pPrivacyNow" />
+                Registra subito il consenso privacy
+              </label>
+              <div id="privacyOnCreateFields" class="form-grid privacy-fields hidden">
+                <div class="field">
+                  <label for="pPrivacyTipo">Tipo consenso</label>
+                  <select id="pPrivacyTipo">
+                    <option value="Trattamento Dati Sanitari">Trattamento Dati Sanitari</option>
+                    <option value="Marketing">Marketing</option>
+                    <option value="Comunicazione a Terzi">Comunicazione a Terzi</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="pPrivacyScadenza">Scadenza</label>
+                  <input id="pPrivacyScadenza" type="date" />
+                </div>
+                <div class="field full">
+                  <label for="pPrivacyFile">Modulo firmato (PDF o immagine)</label>
+                  <input id="pPrivacyFile" type="file" accept=".pdf,image/*" />
+                </div>
+              </div>
+            </div>
+
+            <div class="form-actions">
+              <button type="button" class="btn btn-ghost" data-close="modalPaziente">Annulla</button>
+              <button type="submit" class="btn btn-primary">Salva</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal scheda paziente -->
+    <div id="modalScheda" class="modal-backdrop" role="dialog" aria-modal="true">
+      <div class="modal">
+        <div class="modal-head">
+          <h3 id="schedaTitolo">Scheda paziente</h3>
+          <button type="button" class="btn btn-ghost btn-sm modal-close" data-close="modalScheda">
+            Chiudi
+          </button>
+        </div>
+        <div class="modal-body" id="schedaBody"></div>
+      </div>
+    </div>
+
+    <!-- Modal visita -->
+    <div id="modalVisita" class="modal-backdrop" role="dialog" aria-modal="true">
+      <div class="modal">
+        <div class="modal-head">
+          <h3>Nuova visita</h3>
+          <button type="button" class="btn btn-ghost btn-sm modal-close" data-close="modalVisita">
+            Chiudi
+          </button>
+        </div>
+        <div class="modal-body">
+          <form id="formVisita">
+            <div class="form-grid">
+              <div class="field full">
+                <label for="vPaziente">Paziente *</label>
+                <select id="vPaziente" name="codice_fiscale" required></select>
+              </div>
+              <div class="field">
+                <label for="vDataOra">Data e ora *</label>
+                <input id="vDataOra" name="data_ora" type="datetime-local" required />
+              </div>
+              <div class="field">
+                <label for="vStato">Stato</label>
+                <select id="vStato" name="stato">
+                  <option value="PROGRAMMATA">Programmata</option>
+                  <option value="COMPLETATA">Completata</option>
+                  <option value="ANNULLATA">Annullata</option>
+                </select>
+              </div>
+              <div class="field full">
+                <label for="vTipo">Tipo visita *</label>
+                <input id="vTipo" name="tipo" required placeholder="es. Visita generica" />
+              </div>
+              <div class="field full">
+                <label for="vEsito">Esito / referto</label>
+                <textarea id="vEsito" name="esito" rows="2"></textarea>
+              </div>
+              <div class="field full">
+                <label for="vNote">Note del medico</label>
+                <textarea id="vNote" name="note_medico" rows="2"></textarea>
+              </div>
+            </div>
+            <div class="form-actions">
+              <button type="button" class="btn btn-ghost" data-close="modalVisita">Annulla</button>
+              <button type="submit" class="btn btn-primary">Salva visita</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal consenso (nuovo / modifica / rinnovo) -->
+    <div id="modalConsenso" class="modal-backdrop" role="dialog" aria-modal="true">
+      <div class="modal">
+        <div class="modal-head">
+          <h3 id="modalConsensoTitle">Carica consenso</h3>
+          <button type="button" class="btn btn-ghost btn-sm modal-close" data-close="modalConsenso">
+            Chiudi
+          </button>
+        </div>
+        <div class="modal-body">
+          <form id="formConsenso">
+            <input type="hidden" id="consensoMode" value="create" />
+            <input type="hidden" id="consensoId" value="" />
+            <div class="form-grid">
+              <div class="field full" id="fieldConsensoPaziente">
+                <label for="cPaziente">Paziente *</label>
+                <select id="cPaziente" name="codice_fiscale" required></select>
+              </div>
+              <div class="field full">
+                <label for="cTipo">Tipo consenso *</label>
+                <select id="cTipo" name="tipo" required>
+                  <option value="Trattamento Dati Sanitari">Trattamento Dati Sanitari</option>
+                  <option value="Marketing">Marketing</option>
+                  <option value="Comunicazione a Terzi">Comunicazione a Terzi</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="cFirma">Data firma *</label>
+                <input id="cFirma" name="data_firma" type="date" required />
+              </div>
+              <div class="field">
+                <label for="cScadenza">Data scadenza *</label>
+                <input id="cScadenza" name="data_scadenza" type="date" required />
+              </div>
+              <div class="field" id="fieldConsensoMesi" hidden>
+                <label for="cMesi">Durata rinnovo (mesi)</label>
+                <input id="cMesi" type="number" min="1" max="60" value="24" />
+              </div>
+              <div class="field full">
+                <label for="cFile">Modulo firmato (PDF o immagine)</label>
+                <input id="cFile" name="file" type="file" accept=".pdf,image/*" />
+                <p class="field-hint" id="cFileHint">Opzionale in modifica se l’allegato attuale va bene.</p>
+              </div>
+            </div>
+            <div class="form-actions">
+              <button type="button" class="btn btn-ghost" data-close="modalConsenso">Annulla</button>
+              <button type="submit" class="btn btn-primary" id="btnSalvaConsenso">Salva consenso</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <script src="./vendor/sql-wasm.js"></script>
+    <script src="./db.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>
